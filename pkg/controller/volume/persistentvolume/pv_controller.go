@@ -38,6 +38,7 @@ import (
 	ref "k8s.io/client-go/tools/reference"
 	"k8s.io/client-go/util/workqueue"
 	cloudprovider "k8s.io/cloud-provider"
+	csitranslation "k8s.io/csi-translation-lib"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	"k8s.io/kubernetes/pkg/controller/volume/events"
 	"k8s.io/kubernetes/pkg/controller/volume/persistentvolume/metrics"
@@ -1416,12 +1417,26 @@ func (ctrl *PersistentVolumeController) provisionClaimOperation(claim *v1.Persis
 	}
 
 	var pluginName string
+	provisionerName := storageClass.Provisioner
 	if plugin != nil {
-		pluginName = plugin.GetPluginName()
+		if plugin.IsMigratedToCSI() {
+			// pluginName is not set here to align with existing behavior
+			// of not setting pluginName for external provisioners (including CSI)
+			// Set provisionerName to CSI plugin name for setClaimProvisioner
+			provisionerName, err = csitranslation.GetCSINameFromIntreeName(storageClass.Provisioner)
+			if err != nil {
+				strerr := fmt.Sprintf("Failed to get CSI name for In tree plugin: %s", storageClass.Provisioner)
+				klog.V(2).Infof("%s: %v", strerr, err)
+				ctrl.eventRecorder.Event(claim, v1.EventTypeWarning, events.ProvisioningFailed, strerr)
+				return "", err
+			}
+		} else {
+			pluginName = plugin.GetPluginName()
+		}
 	}
 
 	// Add provisioner annotation so external provisioners know when to start
-	newClaim, err := ctrl.setClaimProvisioner(claim, storageClass)
+	newClaim, err := ctrl.setClaimProvisioner(claim, provisionerName)
 	if err != nil {
 		// Save failed, the controller will retry in the next sync
 		klog.V(2).Infof("error saving claim %s: %v", claimToClaimKey(claim), err)
@@ -1429,7 +1444,7 @@ func (ctrl *PersistentVolumeController) provisionClaimOperation(claim *v1.Persis
 	}
 	claim = newClaim
 
-	if plugin == nil {
+	if plugin == nil || plugin.IsMigratedToCSI() {
 		// findProvisionablePlugin returned no error nor plugin.
 		// This means that an unknown provisioner is requested. Report an event
 		// and wait for the external provisioner

@@ -405,6 +405,12 @@ const (
 	//
 	// Enables the AWS EBS in-tree driver to AWS EBS CSI Driver migration feature.
 	CSIMigrationAWS utilfeature.Feature = "CSIMigrationAWS"
+
+
+        //owner: @adisky @dims
+        //alpha: v1.14
+        //Enables the Cinder CSI in-tree driver to OpenStack Cinder CSI Driver migration feature.
+        CSIMigrationOpenStack utilfeature.Feature = "CSIMigrationOpenStack"
 )
 
 func init() {
@@ -460,6 +466,7 @@ var defaultKubernetesFeatureGates = map[utilfeature.Feature]utilfeature.FeatureS
 	CSIMigration:                                {Default: false, PreRelease: utilfeature.Alpha},
 	CSIMigrationGCE:                             {Default: false, PreRelease: utilfeature.Alpha},
 	CSIMigrationAWS:                             {Default: false, PreRelease: utilfeature.Alpha},
+        CSIMIgrationOpenStack:                       {Default: false, PreRelease: utilfeature.Alpha},
 	RunAsGroup:                                  {Default: false, PreRelease: utilfeature.Alpha},
 	VolumeSubpath:                               {Default: true, PreRelease: utilfeature.GA},
 	BalanceAttachedNodeVolumes:                  {Default: false, PreRelease: utilfeature.Alpha},

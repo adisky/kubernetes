@@ -23,6 +23,8 @@ import (
 	_ "github.com/client9/misspell/cmd/misspell"
 	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
 	_ "github.com/google/go-flow-levee/cmd/levee"
+	_ "golang.org/x/tools/go/analysis"
+	_ "golang.org/x/tools/go/analysis/singlechecker"
 	_ "honnef.co/go/tools/cmd/staticcheck"
 
 	// benchmarking tools

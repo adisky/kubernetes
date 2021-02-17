@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
@@ -29,7 +29,17 @@ filegroup(
 
 filegroup(
     name = "all-srcs",
-    srcs = [":package-srcs"],
+    srcs = [
+        ":package-srcs",
+        "//test/instrumentation/logcheck/testdata:all-srcs",
+    ],
     tags = ["automanaged"],
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["analyzer_test.go"],
+    embed = [":go_default_library"],
+    deps = ["//vendor/golang.org/x/tools/go/analysis/analysistest:go_default_library"],
 )

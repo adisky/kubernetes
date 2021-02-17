@@ -25,6 +25,7 @@ filegroup(
     name = "all-srcs",
     srcs = [
         ":package-srcs",
+        "//vendor/golang.org/x/tools/go/analysis/analysistest:all-srcs",
         "//vendor/golang.org/x/tools/go/analysis/internal/analysisflags:all-srcs",
         "//vendor/golang.org/x/tools/go/analysis/internal/checker:all-srcs",
         "//vendor/golang.org/x/tools/go/analysis/internal/facts:all-srcs",

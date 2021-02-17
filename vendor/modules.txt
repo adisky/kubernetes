@@ -1361,6 +1361,7 @@ golang.org/x/time/rate
 golang.org/x/tools/benchmark/parse
 golang.org/x/tools/container/intsets
 golang.org/x/tools/go/analysis
+golang.org/x/tools/go/analysis/analysistest
 golang.org/x/tools/go/analysis/internal/analysisflags
 golang.org/x/tools/go/analysis/internal/checker
 golang.org/x/tools/go/analysis/internal/facts
@@ -1382,10 +1383,14 @@ golang.org/x/tools/internal/fastwalk
 golang.org/x/tools/internal/gocommand
 golang.org/x/tools/internal/gopathwalk
 golang.org/x/tools/internal/imports
+golang.org/x/tools/internal/lsp/diff
+golang.org/x/tools/internal/lsp/diff/myers
 golang.org/x/tools/internal/lsp/fuzzy
 golang.org/x/tools/internal/packagesinternal
 golang.org/x/tools/internal/span
+golang.org/x/tools/internal/testenv
 golang.org/x/tools/internal/typesinternal
+golang.org/x/tools/txtar
 # golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 => golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 golang.org/x/xerrors
 # golang.org/x/xerrors => golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1

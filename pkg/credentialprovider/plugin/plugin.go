@@ -25,9 +25,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
+	"golang.org/x/sync/singleflight"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -43,7 +43,8 @@ import (
 )
 
 const (
-	globalCacheKey = "global"
+	globalCacheKey     = "global"
+	cachePurgeInterval = time.Minute * 15
 )
 
 var (
@@ -120,6 +121,7 @@ func newPluginProvider(pluginBinDir string, provider kubeletconfig.CredentialPro
 		matchImages:          provider.MatchImages,
 		cache:                cache.NewExpirationStore(cacheKeyFunc, &cacheExpirationPolicy{}),
 		defaultCacheDuration: provider.DefaultCacheDuration.Duration,
+		lastCachePurge:       time.Now(),
 		plugin: &execPlugin{
 			name:         provider.Name,
 			apiVersion:   provider.APIVersion,
@@ -133,7 +135,7 @@ func newPluginProvider(pluginBinDir string, provider kubeletconfig.CredentialPro
 
 // pluginProvider is the plugin-based implementation of the DockerConfigProvider interface.
 type pluginProvider struct {
-	sync.Mutex
+	group singleflight.Group
 
 	// matchImages defines the matching image URLs this plugin should operate against.
 	// The plugin provider will not return any credentials for images that do not match
@@ -149,6 +151,9 @@ type pluginProvider struct {
 
 	// plugin is the exec implementation of the credential providing plugin.
 	plugin Plugin
+
+	// lastCachePurge is the last time cache is cleaned for expired entries.
+	lastCachePurge time.Time
 }
 
 // cacheEntry is the cache object that will be stored in cache.Store.
@@ -176,12 +181,10 @@ func (c *cacheExpirationPolicy) IsExpired(entry *cache.TimestampedEntry) bool {
 // Provide returns a credentialprovider.DockerConfig based on the credentials returned
 // from cache or the exec plugin.
 func (p *pluginProvider) Provide(image string) credentialprovider.DockerConfig {
+
 	if !p.isImageAllowed(image) {
 		return credentialprovider.DockerConfig{}
 	}
-
-	p.Lock()
-	defer p.Unlock()
 
 	cachedConfig, found, err := p.getCachedCredentials(image)
 	if err != nil {
@@ -193,8 +196,15 @@ func (p *pluginProvider) Provide(image string) credentialprovider.DockerConfig {
 		return cachedConfig
 	}
 
-	response, err := p.plugin.ExecPlugin(context.Background(), image)
-	if err != nil {
+	// ExecPlugin is wrapped in single flight to exec plugin once for concurrent same
+	// image request.
+	res, err, _ := p.group.Do(image, func() (interface{}, error) {
+		return p.plugin.ExecPlugin(context.Background(), image)
+	})
+
+	response, ok := res.(*credentialproviderapi.CredentialProviderResponse)
+
+	if err != nil || !ok {
 		klog.Errorf("Failed getting credential from external registry credential provider: %v", err)
 		return credentialprovider.DockerConfig{}
 	}
@@ -232,7 +242,6 @@ func (p *pluginProvider) Provide(image string) credentialprovider.DockerConfig {
 		if p.defaultCacheDuration == 0 {
 			return dockerConfig
 		}
-
 		expiresAt = time.Now().Add(p.defaultCacheDuration)
 	} else {
 		expiresAt = time.Now().Add(response.CacheDuration.Duration)
@@ -269,6 +278,13 @@ func (p *pluginProvider) isImageAllowed(image string) bool {
 
 // getCachedCredentials returns a credentialprovider.DockerConfig if cached from the plugin.
 func (p *pluginProvider) getCachedCredentials(image string) (credentialprovider.DockerConfig, bool, error) {
+
+	// NewExpirationCache purges expired entries when List() is called
+	if time.Now().After(p.lastCachePurge.Add(cachePurgeInterval)) {
+		_ = p.cache.List()
+		p.lastCachePurge = time.Now()
+	}
+
 	obj, found, err := p.cache.GetByKey(image)
 	if err != nil {
 		return nil, false, err
@@ -325,6 +341,8 @@ type execPlugin struct {
 // The plugin is expected to receive the CredentialProviderRequest API via stdin from the kubelet and
 // return CredentialProviderResponse via stdout.
 func (e *execPlugin) ExecPlugin(ctx context.Context, image string) (*credentialproviderapi.CredentialProviderResponse, error) {
+	klog.V(5).InfoS("Getting image credentials from external exec plugin", "image", image, "plugin", e.name)
+
 	authRequest := &credentialproviderapi.CredentialProviderRequest{Image: image}
 	data, err := e.encodeRequest(authRequest)
 	if err != nil {
@@ -361,7 +379,6 @@ func (e *execPlugin) ExecPlugin(ctx context.Context, image string) (*credentialp
 	}
 
 	data = stdout.Bytes()
-
 	// check that the response apiVersion matches what is expected
 	gvk, err := json.DefaultMetaFactory.Interpret(data)
 	if err != nil {
@@ -372,7 +389,7 @@ func (e *execPlugin) ExecPlugin(ctx context.Context, image string) (*credentialp
 		return nil, errors.New("apiVersion from credential plugin response did not match")
 	}
 
-	response, err := e.decodeResponse(stdout.Bytes())
+	response, err := e.decodeResponse(data)
 	if err != nil {
 		// err is explicitly not wrapped since it may contain credentials in the response.
 		return nil, errors.New("error decoding credential provider plugin response from stdout")

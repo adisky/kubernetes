@@ -30,8 +30,8 @@ import (
 	"k8s.io/klog/v2"
 
 	// ensure libs have a chance to globally register their flags
-	_ "k8s.io/kubernetes/pkg/credentialprovider/azure"
-	_ "k8s.io/kubernetes/pkg/credentialprovider/gcp"
+       	// "k8s.io/kubernetes/pkg/credentialprovider/azure"
+      //	_ "k8s.io/kubernetes/pkg/credentialprovider/gcp"
 )
 
 // AddGlobalFlags explicitly registers flags that libraries (glog, verflag, etc.) register
@@ -40,7 +40,7 @@ import (
 func AddGlobalFlags(fs *pflag.FlagSet) {
 	addKlogFlags(fs)
 	addCadvisorFlags(fs)
-	addCredentialProviderFlags(fs)
+	// addCredentialProviderFlags(fs)
 	verflag.AddFlags(fs)
 	logs.AddFlags(fs)
 }

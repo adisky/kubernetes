@@ -29,6 +29,7 @@ import (
 // PullImage pulls an image from the network to local storage using the supplied
 // secrets if necessary.
 func (m *kubeGenericRuntimeManager) PullImage(image kubecontainer.ImageSpec, pullSecrets []v1.Secret, podSandboxConfig *runtimeapi.PodSandboxConfig) (string, error) {
+	klog.Infof("@@adisky in pull image  image:%v", image)
 	img := image.Image
 	repoToPull, _, _, err := parsers.ParseImageName(img)
 	if err != nil {

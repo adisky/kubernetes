@@ -245,7 +245,9 @@ func NewKubeGenericRuntimeManager(
 		}
 	}
 	kubeRuntimeManager.keyring = credentialprovider.NewDockerKeyring()
-
+        klog.Infof("@@adisky serializeImagePulls %s", serializeImagePulls)
+	serializeImagePulls = false
+	klog.Infof("@@adisky serializeImagePulls changed %s", serializeImagePulls)
 	kubeRuntimeManager.imagePuller = images.NewImageManager(
 		kubecontainer.FilterEventRecorder(recorder),
 		kubeRuntimeManager,

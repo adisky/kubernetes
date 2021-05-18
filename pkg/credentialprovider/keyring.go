@@ -235,6 +235,7 @@ func URLsMatch(globURL *url.URL, targetURL *url.URL) (bool, error) {
 // Multiple credentials may be returned if there are multiple potentially valid credentials
 // available.  This allows for rotation.
 func (dk *BasicDockerKeyring) Lookup(image string) ([]AuthConfig, bool) {
+	klog.Infof("@@adisky In lookup for image %s", image)
 	// range over the index as iterating over a map does not provide a predictable ordering
 	ret := []AuthConfig{}
 	for _, k := range dk.index {

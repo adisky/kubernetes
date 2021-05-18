@@ -18,7 +18,7 @@ package secrets
 
 import (
 	"encoding/json"
-
+        "k8s.io/klog/v2"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/kubernetes/pkg/credentialprovider"
 )
@@ -27,6 +27,7 @@ import (
 // then a DockerKeyring is built based on every hit and unioned with the defaultKeyring.
 // If they do not, then the default keyring is returned
 func MakeDockerKeyring(passedSecrets []v1.Secret, defaultKeyring credentialprovider.DockerKeyring) (credentialprovider.DockerKeyring, error) {
+	klog.Infof("@@adisky In MakeDockerKeyring")
 	passedCredentials := []credentialprovider.DockerConfig{}
 	for _, passedSecret := range passedSecrets {
 		if dockerConfigJSONBytes, dockerConfigJSONExists := passedSecret.Data[v1.DockerConfigJsonKey]; (passedSecret.Type == v1.SecretTypeDockerConfigJson) && dockerConfigJSONExists && (len(dockerConfigJSONBytes) > 0) {

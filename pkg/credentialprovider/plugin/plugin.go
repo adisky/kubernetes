@@ -25,6 +25,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/sync/singleflight"
@@ -135,6 +136,8 @@ func newPluginProvider(pluginBinDir string, provider kubeletconfig.CredentialPro
 
 // pluginProvider is the plugin-based implementation of the DockerConfigProvider interface.
 type pluginProvider struct {
+	sync.Mutex
+
 	group singleflight.Group
 
 	// matchImages defines the matching image URLs this plugin should operate against.
@@ -196,16 +199,24 @@ func (p *pluginProvider) Provide(image string) credentialprovider.DockerConfig {
 		return cachedConfig
 	}
 
-	// ExecPlugin is wrapped in single flight to exec plugin once for concurrent same
-	// image request.
+	// ExecPlugin is wrapped in single flight to exec plugin once for concurrent same image request.
+	// The caveat here is we don't know cacheKeyType yet, so if cacheKeyType is registry/global and credentials saved in cache
+	// on per registry/global basis then exec will be called for all requests if requests are made concurrently.
+	// foo.bar.registry
+	// foo.bar.registry/image1
+	// foo.bar.registry/image2
 	res, err, _ := p.group.Do(image, func() (interface{}, error) {
 		return p.plugin.ExecPlugin(context.Background(), image)
 	})
 
-	response, ok := res.(*credentialproviderapi.CredentialProviderResponse)
-
-	if err != nil || !ok {
+	if err != nil {
 		klog.Errorf("Failed getting credential from external registry credential provider: %v", err)
+		return credentialprovider.DockerConfig{}
+	}
+
+	response, ok := res.(*credentialproviderapi.CredentialProviderResponse)
+	if !ok {
+		klog.Errorf("Failed to decode ressponse from external registry provider")
 		return credentialprovider.DockerConfig{}
 	}
 
@@ -280,10 +291,12 @@ func (p *pluginProvider) isImageAllowed(image string) bool {
 func (p *pluginProvider) getCachedCredentials(image string) (credentialprovider.DockerConfig, bool, error) {
 
 	// NewExpirationCache purges expired entries when List() is called
+	p.Lock()
 	if time.Now().After(p.lastCachePurge.Add(cachePurgeInterval)) {
 		_ = p.cache.List()
 		p.lastCachePurge = time.Now()
 	}
+	p.Unlock()
 
 	obj, found, err := p.cache.GetByKey(image)
 	if err != nil {
@@ -386,7 +399,7 @@ func (e *execPlugin) ExecPlugin(ctx context.Context, image string) (*credentialp
 	}
 
 	if gvk.GroupVersion().String() != e.apiVersion {
-		return nil, errors.New("apiVersion from credential plugin response did not match")
+		return nil, fmt.Errorf("apiVersion from credential plugin response did not match expectedApiVersion:%s, actualApiVersion:%s", e.apiVersion, gvk.GroupVersion().String())
 	}
 
 	response, err := e.decodeResponse(data)

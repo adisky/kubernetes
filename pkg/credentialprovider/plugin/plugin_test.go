@@ -18,12 +18,15 @@ package plugin
 
 import (
 	"context"
+	"fmt"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/tools/cache"
 	credentialproviderapi "k8s.io/kubelet/pkg/apis/credentialprovider"
 	credentialproviderv1alpha1 "k8s.io/kubelet/pkg/apis/credentialprovider/v1alpha1"
@@ -195,13 +198,89 @@ func Test_Provide(t *testing.T) {
 	}
 
 	for _, testcase := range testcases {
+		testcase := testcase
 		t.Run(testcase.name, func(t *testing.T) {
+			t.Parallel()
 			dockerconfig := testcase.pluginProvider.Provide(testcase.image)
 			if !reflect.DeepEqual(dockerconfig, testcase.dockerconfig) {
 				t.Logf("actual docker config: %v", dockerconfig)
 				t.Logf("expected docker config: %v", testcase.dockerconfig)
 				t.Error("unexpected docker config")
 			}
+		})
+	}
+}
+
+func Test_ProvideParallel(t *testing.T) {
+	// This test calls Provide in parallel for different registries and images
+	// The purpose of this is to detect any race conditions while cache rw.
+
+	testcases := []struct {
+		name     string
+		registry string
+	}{
+		{
+			name:     "provide for registry 1",
+			registry: "test1.registry.io",
+		},
+		{
+			name:     "provide for registry 2",
+			registry: "test2.registry.io",
+		},
+		{
+			name:     "provide for registry 3",
+			registry: "test3.registry.io",
+		},
+		{
+			name:     "provide for registry 4",
+			registry: "test4.registry.io",
+		},
+	}
+
+	pluginProvider := &pluginProvider{
+		matchImages: []string{"test1.registry.io", "test2.registry.io", "test3.registry.io", "test4.registry.io"},
+		cache:       cache.NewExpirationStore(cacheKeyFunc, &cacheExpirationPolicy{}),
+		plugin: &fakeExecPlugin{
+			cacheDuration: time.Minute * 1,
+			cacheKeyType:  credentialproviderapi.RegistryPluginCacheKeyType,
+			auth: map[string]credentialproviderapi.AuthConfig{
+				"test.registry.io": {
+					Username: "user",
+					Password: "password",
+				},
+			},
+		},
+	}
+
+	dockerconfig := credentialprovider.DockerConfig{
+		"test.registry.io": credentialprovider.DockerConfigEntry{
+			Username: "user",
+			Password: "password",
+		},
+	}
+
+	for _, testcase := range testcases {
+		testcase := testcase
+		t.Run(testcase.name, func(t *testing.T) {
+			t.Parallel()
+			var wg sync.WaitGroup
+			wg.Add(5)
+
+			for i := 0; i < 5; i++ {
+				go func(w *sync.WaitGroup) {
+					image := fmt.Sprintf(testcase.registry+"/%s", rand.String(5))
+					time.Sleep(20 * time.Millisecond)
+					dockerconfigResponse := pluginProvider.Provide(image)
+					if !reflect.DeepEqual(dockerconfigResponse, dockerconfig) {
+						t.Logf("actual docker config: %v", dockerconfigResponse)
+						t.Logf("expected docker config: %v", dockerconfig)
+						t.Error("unexpected docker config")
+					}
+					w.Done()
+				}(&wg)
+			}
+			wg.Wait()
+
 		})
 	}
 }

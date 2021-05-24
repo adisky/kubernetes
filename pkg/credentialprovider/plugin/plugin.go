@@ -41,6 +41,7 @@ import (
 	"k8s.io/kubernetes/pkg/credentialprovider"
 	kubeletconfig "k8s.io/kubernetes/pkg/kubelet/apis/config"
 	kubeletconfigv1alpha1 "k8s.io/kubernetes/pkg/kubelet/apis/config/v1alpha1"
+	"k8s.io/kubernetes/pkg/kubelet/metrics"
 )
 
 const (
@@ -354,6 +355,7 @@ type execPlugin struct {
 // The plugin is expected to receive the CredentialProviderRequest API via stdin from the kubelet and
 // return CredentialProviderResponse via stdout.
 func (e *execPlugin) ExecPlugin(ctx context.Context, image string) (*credentialproviderapi.CredentialProviderResponse, error) {
+
 	klog.V(5).InfoS("Getting image credentials from external exec plugin", "image", image, "plugin", e.name)
 
 	authRequest := &credentialproviderapi.CredentialProviderRequest{Image: image}
@@ -381,15 +383,21 @@ func (e *execPlugin) ExecPlugin(ctx context.Context, image string) (*credentialp
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", envVar.Name, envVar.Value))
 	}
 
+	startTime := time.Now()
+
 	err = cmd.Run()
 	if ctx.Err() != nil {
+		metrics.KubeletCredentialProviderPluginErrors.WithLabelValues("plugin1").Inc()
 		return nil, fmt.Errorf("error execing credential provider plugin %s for image %s: %w", e.name, image, ctx.Err())
 	}
 
 	if err != nil {
+		metrics.KubeletCredentialProviderPluginErrors.WithLabelValues("plugin1").Inc()
 		klog.V(2).Infof("Error execing credential provider plugin, stderr: %v", stderr.String())
 		return nil, fmt.Errorf("error execing credential provider plugin %s for image %s: %w", e.name, image, err)
 	}
+
+	metrics.KubeletCredentialProviderPluginDuration.WithLabelValues("plugin1").Observe(metrics.SinceInSeconds(startTime))
 
 	data = stdout.Bytes()
 	// check that the response apiVersion matches what is expected

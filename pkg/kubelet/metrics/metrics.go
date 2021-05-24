@@ -488,6 +488,8 @@ func Register(collectors ...metrics.StableCollector) {
 		legacyregistry.MustRegister(RunningPodCount)
 		legacyregistry.MustRegister(RunPodSandboxDuration)
 		legacyregistry.MustRegister(RunPodSandboxErrors)
+		legacyregistry.MustRegister(KubeletCredentialProviderPluginDuration)
+		legacyregistry.MustRegister(KubeletCredentialProviderPluginErrors)
 		if utilfeature.DefaultFeatureGate.Enabled(features.DynamicKubeletConfig) {
 			legacyregistry.MustRegister(AssignedConfig)
 			legacyregistry.MustRegister(ActiveConfig)

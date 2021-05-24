@@ -83,6 +83,10 @@ const (
 	// Metrics keys for RuntimeClass
 	RunPodSandboxDurationKey = "run_podsandbox_duration_seconds"
 	RunPodSandboxErrorsKey   = "run_podsandbox_errors_total"
+
+	// metrics for credential provider
+	KubeletCredentialProviderPluginErrorsKey   = "kubelet_credential_provider_plugin_errors"
+	KubeletCredentialProviderPluginDurationKey = "kubelet_credential_provider_plugin_duration"
 )
 
 var (
@@ -192,6 +196,7 @@ var (
 			StabilityLevel: metrics.ALPHA,
 		},
 	)
+
 	// RuntimeOperations is a Counter that tracks the cumulative number of remote runtime operations.
 	// Broken down by operation type.
 	RuntimeOperations = metrics.NewCounterVec(
@@ -226,6 +231,28 @@ var (
 		},
 		[]string{"operation_type"},
 	)
+
+	KubeletCredentialProviderPluginErrors = metrics.NewCounterVec(
+		&metrics.CounterOpts{
+			Subsystem:      KubeletSubsystem,
+			Name:           KubeletCredentialProviderPluginErrorsKey,
+			Help:           "Errors from credential provider",
+			StabilityLevel: metrics.ALPHA,
+		},
+		[]string{},
+	)
+
+	KubeletCredentialProviderPluginDuration = metrics.NewHistogramVec(
+		&metrics.HistogramOpts{
+			Subsystem:      KubeletSubsystem,
+			Name:           KubeletCredentialProviderPluginDurationKey,
+			Help:           "Duration in seconds of for credential provider exec",
+			Buckets:        metrics.ExponentialBuckets(.005, 2.5, 14),
+			StabilityLevel: metrics.ALPHA,
+		},
+		[]string{},
+	)
+
 	// Evictions is a Counter that tracks the cumulative number of pod evictions initiated by the kubelet.
 	// Broken down by eviction signal.
 	Evictions = metrics.NewCounterVec(
@@ -461,6 +488,8 @@ func Register(collectors ...metrics.StableCollector) {
 		legacyregistry.MustRegister(RunningPodCount)
 		legacyregistry.MustRegister(RunPodSandboxDuration)
 		legacyregistry.MustRegister(RunPodSandboxErrors)
+		legacyregistry.MustRegister(KubeletCredentialProviderPluginDuration)
+		legacyregistry.MustRegister(KubeletCredentialProviderPluginErrors)
 		if utilfeature.DefaultFeatureGate.Enabled(features.DynamicKubeletConfig) {
 			legacyregistry.MustRegister(AssignedConfig)
 			legacyregistry.MustRegister(ActiveConfig)

@@ -386,6 +386,7 @@ func (e *execPlugin) ExecPlugin(ctx context.Context, image string) (*credentialp
 	startTime := time.Now()
 
 	err = cmd.Run()
+        klog.Infof("@@adisky stderr %s stdout %s", stderr.String(), stdout.String())
 	if ctx.Err() != nil {
 		metrics.KubeletCredentialProviderPluginErrors.WithLabelValues("plugin1").Inc()
 		return nil, fmt.Errorf("error execing credential provider plugin %s for image %s: %w", e.name, image, ctx.Err())

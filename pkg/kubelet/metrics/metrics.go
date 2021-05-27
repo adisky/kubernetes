@@ -239,7 +239,7 @@ var (
 			Help:           "Errors from credential provider",
 			StabilityLevel: metrics.ALPHA,
 		},
-		[]string{},
+		[]string{"plugin_name"},
 	)
 
 	KubeletCredentialProviderPluginDuration = metrics.NewHistogramVec(
@@ -247,10 +247,10 @@ var (
 			Subsystem:      KubeletSubsystem,
 			Name:           KubeletCredentialProviderPluginDurationKey,
 			Help:           "Duration in seconds of for credential provider exec",
-			Buckets:        metrics.ExponentialBuckets(.005, 2.5, 14),
+			Buckets:        metrics.DefBuckets,
 			StabilityLevel: metrics.ALPHA,
 		},
-		[]string{},
+		[]string{"plugin_name"},
 	)
 
 	// Evictions is a Counter that tracks the cumulative number of pod evictions initiated by the kubelet.

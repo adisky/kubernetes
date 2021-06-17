@@ -56,7 +56,7 @@ var (
 
 // init registers the various means by which credentials may
 // be resolved on Azure.
-func init() {
+func Register() {
 	credentialprovider.RegisterCredentialProvider(
 		"azure",
 		NewACRProvider(flagConfigFile),

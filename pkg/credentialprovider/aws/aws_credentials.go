@@ -48,7 +48,7 @@ var (
 
 // init registers a credential provider for each registryURLTemplate and creates
 // an ECR token getter factory with a new cache to store token getters
-func init() {
+func Register() {
 	credentialprovider.RegisterCredentialProvider("amazon-ecr",
 		newECRProvider(&ecrTokenGetterFactory{cache: make(map[string]tokenGetter)},
 			ec2ValidationImpl,

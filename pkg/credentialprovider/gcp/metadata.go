@@ -59,7 +59,7 @@ var metadataHeader = &http.Header{
 
 // init registers the various means by which credentials may
 // be resolved on GCP.
-func init() {
+func Register() {
 	tr := utilnet.SetTransportDefaults(&http.Transport{})
 	metadataHTTPClientTimeout := time.Second * 10
 	httpClient := &http.Client{

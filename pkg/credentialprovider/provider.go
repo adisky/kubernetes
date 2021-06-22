@@ -68,6 +68,10 @@ type CachingDockerConfigProvider struct {
 	mu                sync.Mutex
 }
 
+func NewDockerConfigProvider() *defaultDockerConfigProvider {
+	return &defaultDockerConfigProvider{}
+}
+
 // Enabled implements dockerConfigProvider
 func (d *defaultDockerConfigProvider) Enabled() bool {
 	return true

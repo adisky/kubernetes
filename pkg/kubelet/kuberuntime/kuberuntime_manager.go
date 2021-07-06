@@ -606,6 +606,36 @@ func (m *kubeGenericRuntimeManager) computePodActions(pod *v1.Pod, podStatus *ku
 		return changes
 	}
 
+	// computePodActions is called from Kuberuntime manager SyncPod
+	// SyncPod is called from pod workers syncPod
+	// during reconcile/sync we check if the maincontainer of the pod is exited
+	// if it is exited kill other containers also.
+	// Another options is when we get PLEG event for `containerDied` in syncLoop, we handle it there.
+	// We can call HandlePodsyncs from there once we recieve containerDied event.
+	mainContainer := pod.Annotations["maincontainer"]
+	mainContainerStatus := podStatus.FindContainerStatusByName(mainContainer)
+	klog.InfoS("@@adisky just before kuberuntime manager loop", "mainContainerStatus", mainContainerStatus)
+	if mainContainerStatus != nil && mainContainerStatus.State == kubecontainer.ContainerStateExited && mainContainerStatus.ExitCode == 0 {
+
+		klog.InfoS("@@adisky Inside kuberuntime manager loop")
+		// kill other containers
+		// TODO: check for restart policy also, if it is always leave it
+		// if the restart policy is "OnFailure", then check the container we killed is going to be restarted or not
+		// TODO: possibly check if it is a Job
+		for idx, container := range pod.Spec.Containers {
+			containerStatus := podStatus.FindContainerStatusByName(container.Name)
+			changes.ContainersToKill[containerStatus.ID] = containerToKillInfo{
+				name:      containerStatus.Name,
+				container: &pod.Spec.Containers[idx],
+				message: fmt.Sprintf("Main container exited, killing container state %s",
+					containerStatus.State),
+				reason: reasonUnknown,
+			}
+
+		}
+
+	}
+
 	// Number of running containers to keep.
 	keepCount := 0
 	// check the status of containers.

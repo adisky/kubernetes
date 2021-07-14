@@ -188,6 +188,8 @@ type TestContextType struct {
 
 	// SnapshotControllerHTTPPort the port used for communicating with the snapshot controller HTTP endpoint.
 	SnapshotControllerHTTPPort int
+
+	CredentialProvider bool
 }
 
 // NodeKillerConfig describes configuration of NodeKiller -- a utility to

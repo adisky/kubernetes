@@ -29,6 +29,7 @@ import (
 )
 
 var k8sBinDir = flag.String("k8s-bin-dir", "", "Directory containing k8s kubelet binaries.")
+var credentialProviderDir = flag.String("credential-provider-dir", "", "Directory containing credential provider")
 
 var buildTargets = []string{
 	"cmd/kubelet",
@@ -55,6 +56,19 @@ func BuildGo() error {
 	return nil
 }
 
+func BuildCredentialProvider() error {
+	klog.Infof("Building credential provider")
+	cmd := exec.Command("go build")
+	cmd.Dir = "/home/sharmaad/go/src/github.com/sample-credential-provider"
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to build credential provider")
+	}
+
+	return nil
+}
 func getK8sBin(bin string) (string, error) {
 	// Use commandline specified path
 	if *k8sBinDir != "" {

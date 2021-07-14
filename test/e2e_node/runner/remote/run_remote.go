@@ -49,6 +49,8 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+// TODO:(adisky): Add flag credential-provider here
+var cprovider = flag.Bool("cprovider", true, "if cprovider has to be used")
 var testArgs = flag.String("test_args", "", "Space-separated list of arguments to pass to Ginkgo test runner.")
 var testSuite = flag.String("test-suite", "default", "Test suite the runner initializes with. Currently support default|cadvisor|conformance")
 var instanceNamePrefix = flag.String("instance-name-prefix", "", "prefix for instance names")

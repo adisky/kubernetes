@@ -161,6 +161,16 @@ func (n *NodeE2ERemote) RunTest(host, workspace, results, imageDesc, junitFilePr
 		return "", err
 	}
 
+	klog.Infof("adisky after CNI setup, here we can install credential provider")
+	if err := builder.BuildCredentialProvider(); err != nil {
+		return "", err
+	}
+	// Copy the archive to the staging directory
+	if output, err := runSSHCommand("scp", "/home/sharmaad/go/src/github.com/sample-credential-provider/sample-credential-provider", fmt.Sprintf("%s:%s/", GetHostnameOrIP(host), workspace)); err != nil {
+		// Exit failure with the error
+		return "", fmt.Errorf("failed to copy credential binary: %v, output: %q", err, output)
+	}
+
 	// Configure iptables firewall rules
 	if err := configureFirewall(host); err != nil {
 		return "", err

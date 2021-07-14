@@ -56,6 +56,9 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// TODO(adisky): Add credential provider flag here
+// Mostly it will run on remote node but lets try!!
+// problem with remote node is we cannot build there
 var (
 	e2es *services.E2EServices
 
@@ -68,6 +71,7 @@ var (
 
 // registerNodeFlags registers flags specific to the node e2e test suite.
 func registerNodeFlags(flags *flag.FlagSet) {
+	klog.Infof("@@adisky register node flags")
 	// Mark the test as node e2e when node flags are api.Registry.
 	framework.TestContext.NodeE2E = true
 	flags.StringVar(&framework.TestContext.BearerToken, "bearer-token", "", "The bearer token to authenticate with. If not specified, it would be a random token. Currently this token is only used in node e2e tests.")
@@ -87,6 +91,7 @@ func registerNodeFlags(flags *flag.FlagSet) {
 	flags.StringVar(&framework.TestContext.SriovdpConfigMapFile, "sriovdp-configmap-file", "", "The name of the SRIOV device plugin Config Map to load.")
 	flag.StringVar(&framework.TestContext.ClusterDNSDomain, "dns-domain", "", "The DNS Domain of the cluster.")
 	flag.Var(cliflag.NewMapStringString(&framework.TestContext.RuntimeConfig), "runtime-config", "The runtime configuration used on node e2e tests.")
+	flag.BoolVar(&framework.TestContext.CredentialProvider, "credential-provider", true, "If true it builds and install credential provider")
 }
 
 func init() {
@@ -99,6 +104,8 @@ func init() {
 }
 
 func TestMain(m *testing.M) {
+	klog.Infof("@@adisky TestMain")
+
 	// Copy go flags in TestMain, to ensure go test flags are registered (no longer available in init() as of go1.13)
 	e2econfig.CopyFlags(e2econfig.Flags, flag.CommandLine)
 	framework.RegisterCommonFlags(flag.CommandLine)
@@ -124,6 +131,7 @@ func TestMain(m *testing.M) {
 const rootfs = "/rootfs"
 
 func TestE2eNode(t *testing.T) {
+	klog.Infof("@@adisky E2Enode")
 	if *runServicesMode {
 		// If run-services-mode is specified, only run services in current process.
 		services.RunE2EServices(t)
@@ -180,6 +188,12 @@ func TestE2eNode(t *testing.T) {
 var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	// Run system validation test.
 	gomega.Expect(validateSystem()).To(gomega.Succeed(), "system validation")
+
+	klog.Infof("adisky in sync before test suite")
+
+	if framework.TestContext.CredentialProvider {
+		klog.Infof("adisky install and build cred provider here")
+	}
 
 	// Pre-pull the images tests depend on so we can fail immediately if there is an image pull issue
 	// This helps with debugging test flakes since it is hard to tell when a test failure is due to image pulling.
